@@ -1,0 +1,23 @@
+{
+  "name": "packages",
+  "version": "0.0.0",
+  "description": "CLI Tool for managing meteor packages",
+  "main": "index.js",
+  "dependencies": {
+    "colors": "^1.0.3",
+    "optimist": "^0.6.1",
+    "q": "^1.0.1",
+    "semver": "^4.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "meteor",
+    "package",
+    "manager"
+  ],
+  "author": "Joshua Ohlman (codewriterohs@gmail.com)",
+  "license": "ISC"
+}
