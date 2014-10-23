@@ -5,19 +5,6 @@ var exec = require('child_process').exec
 	, semver = require('semver')
 	, readFile = q.denodeify(fs.readFile)
 	, writeFile = q.denodeify(fs.writeFile)
-	, shell = function (command) {
-		var deferred = q.defer();
-		exec(command, function (err, stdout, stderr) {
-			console.log(stdout);
-			console.log(stderr);
-			if (err) {
-				deferred.reject(err);
-			} else {
-				deferred.resolve(stdout);
-			}
-		});
-		return deferred.promise;
-	}
 	, path = require('path');
 
 exports.versionRegExp = /version:\s*['"]([0-9._-]*)["']/;
@@ -30,6 +17,22 @@ exports.writeVersion = function(pathToDescriptor, version) {
 };
 
 exports.publish = function (pathToPackage, options) {
+	var shell = function (command) {
+		var deferred = q.defer();
+		exec(command, {
+			cwd: pathToPackage
+		}, function (err, stdout, stderr) {
+			console.log(stdout);
+			console.log(stderr);
+			if (err) {
+				deferred.reject(err);
+			} else {
+				deferred.resolve(stdout);
+			}
+		});
+		return deferred.promise;
+	}
+	;
 	options = _.defaults(options || {}, {
 		commit: true
 		, push: true
@@ -131,5 +134,3 @@ exports.publish = function (pathToPackage, options) {
 		console.log('done');
 	});
 };
-
-exports.publish(".");

@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+
+var argv = require('optimist').argv
+  , colors = require('colors')
+  , manager = require('..')
+  , _ = require('underscore');
+
+var command = argv._[0] || 'publish';
+var path = argv._[1] || '.';
+
+manager[command](path, argv);
