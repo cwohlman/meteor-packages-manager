@@ -17,7 +17,6 @@ exports.maybeBumpVersion = function(pathToDescriptor, options) {
 		version = new semver.SemVer(file.match(exports.versionRegExp)[1]);
 
 		if (options && options.bump) {
-			console.log('bumping version');
 			var bumpRelease = _.find([
 					"premajor"
 					, "preminor"
@@ -29,6 +28,7 @@ exports.maybeBumpVersion = function(pathToDescriptor, options) {
 					, "pre"], function (release) {
 						return !!options[release];
 					}) || 'patch';
+			console.log('bumping ' + bumpRelease + " version: " + version);
 			version.inc(bumpRelease);
 			file = file.replace(
 				exports.versionRegExp
@@ -172,7 +172,7 @@ exports.linkPackages = function (packages, options) {
 	promise = exports.runSeveral(exports.link, packages, options);
 
 	promise = promise.then(function () {
-		if (fs.existsSync(gitignorePath)) return readFile(gitignorePath);
+		if (fs.existsSync(gitignorePath)) return readFile(gitignorePath, 'utf8');
 		else return '';
 	});
 	promise = promise.then(function (file) {
@@ -185,7 +185,7 @@ exports.linkPackages = function (packages, options) {
 		return writeFile(gitignorePath, file);
 	});
 	promise = promise.then(function () {
-		if (fs.existsSync(linkedPackages)) return readFile(linkedPackages);
+		if (fs.existsSync(linkedPackages)) return readFile(linkedPackages, 'utf8');
 		else return '';
 	});
 	promise = promise.then(function (file) {
@@ -309,7 +309,7 @@ exports.updateVersions = function(pathToApp, packagesPath, files, options) {
 	_.each(files, function (file) {
 		file = path.join(packagesPath, file);
 		if (promise) {
-			promise.then(function(result) {
+			promise = promise.then(function(result) {
 				return exports.getNameAndVersion(file, options).then(function (a) {
 					result[a.name] = a.version;
 					return result;
@@ -323,7 +323,7 @@ exports.updateVersions = function(pathToApp, packagesPath, files, options) {
 			});
 		}
 	});
-	promise.then(function (versions) {
+	promise = promise.then(function (versions) {
 		var pathToMeteorPackages = path.join(pathToApp, '.meteor/packages')
 			, promise = readFile(pathToMeteorPackages, 'utf8')
 			;
@@ -334,6 +334,7 @@ exports.updateVersions = function(pathToApp, packagesPath, files, options) {
 
 				// replace old version with new version
 				if (i != -1) {
+					console.log(file.slice(i, lineEnd) + " --> " + version);
 					file = file.slice(0, i) +
 						name + '@' + version +
 						(lineEnd != -1 ? file.slice(lineEnd) : '');
@@ -364,13 +365,19 @@ exports.getNameAndVersion = function (pathToPackage, options) {
 };
 
 exports.publishApp = function (pathToApp, options) {
+	console.log('reading packages/.linkedpackages');
+
 	var pathToPackages = path.join(pathToApp, 'packages')
 		, pathToLinkedPackages = path.join(pathToPackages, '.linkedpackages')
+		, files
+		, filesWithPaths
 		, promise = readFile(pathToLinkedPackages, 'utf8')
 		;
 
+
 	promise = promise.then(function (data) {
-		var files = _
+		console.log('publishing package versions');
+		files = _
 			.chain(data.split('\n'))
 			.map(function (a) {
 				return a.trim();
@@ -378,19 +385,19 @@ exports.publishApp = function (pathToApp, options) {
 			.filter(_.identity)
 			.value()
 			;
-		var filesWithPaths = _.map(files, function (a) {
+		filesWithPaths = _.map(files, function (a) {
 				return path.join(pathToPackages, a);
 			});
 		return exports.runSeveral(
 			exports.publish
 			, filesWithPaths
 			, options
-		).then(function () {
-			return files;
-		});
+		);
 	});
 
-	promise = promise.then(function (files) {
+
+	promise = promise.then(function () {
+		console.log('updating app versions');
 		return exports.updateVersions(
 			pathToApp
 			, pathToPackages
@@ -399,9 +406,51 @@ exports.publishApp = function (pathToApp, options) {
 			);
 	});
 
-	// XXX should cleanup if --cleanup
+	if (options.cleanup) {
+		promise = promise.then(function () {
+			console.log('cleaning up development packages');
+		});
+		var pathToGitignore = path.join(pathToPackages, '.gitignore')
+			, shell = function (command) {
+				var deferred = q.defer();
+				exec(command, {
+					cwd: pathToPackages
+				}, function (err, stdout, stderr) {
+					console.log(stdout);
+					console.log(stderr);
+					if (err) {
+						deferred.reject(err);
+					} else {
+						deferred.resolve(stdout);
+					}
+				});
+				return deferred.promise;
+			};
+		promise = promise.then(function () {
+			exports.runSeveral(function (p) {
+				console.log('removing ' + p);
+				shell('rm ' + p);
+			}, files.concat('.linkedpackages'));
+		});
+		promise = promise.then(function () {
+			return readFile(pathToGitignore, 'utf8');
+		});
+		promise = promise.then(function (file) {
+			var re = new RegExp('^\\s*' +
+				// escape any regex chars in string eg .
+				// http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+				file.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&") +
+				"\\s*$");
+			_.each(files, function (a) {
+				file = file.replace(re, '');
+			});
+			return writeFile(pathToGitignore, file);
+		});
+	}
 
-	return promise;
+	return promise.then(function () {
+		console.log('finished publishing app packages');
+	});
 };
 
 exports.publishAnything = function (pathToDir, options) {

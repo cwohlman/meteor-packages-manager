@@ -16,12 +16,15 @@ var manager = require('..')
 		.alias('a', 'app')
 		.boolean('a')
 		.describe('a', 'Publish linked packages and update versions in .meteor/packages')
+		.alias('c', 'cleanup')
+		.boolean('c')
+		.describe('c', 'When used with the -a option removes linked packages after publishing them.')
 		.alias('d', 'dir')
 		.boolean('d')
 		.describe('d', 'Publish all packages in dir')
 		.alias('i', 'increment')
 		.boolean('i')
-		.describe('i', 'Increment the version number of a package')
+		.describe('i', 'Like -p but doesn\'t actually publish the app. Increments the version number of a package and commits, tags, pushes. Useful with the --no-commit option (wont commit tag or push after incrementing).')
 		.alias('u', 'update-app')
 		.boolean('u')
 		.describe('u', 'Update version numbers in app to match versions in /packages dir\nParticularly useful when you\'ve already published each package, but haven\'t updated the app.' )
@@ -103,6 +106,8 @@ if (args.link) {
 }
 
 //throw any errors
-promise.done();
+promise.done(function () {
+	console.log('command completed successfully!');
+});
 
 // manager[command](path, argv);
