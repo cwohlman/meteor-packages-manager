@@ -83,7 +83,7 @@ if (args.link) {
 } else if (args.publish) {
 	promise = manager.publish(path, args);
 } else if (args.app) {
-	throw new Error('Not implemented');
+	promise = manager.publishApp(path, args);
 } else if (args.dir) {
 	promise = manager.publishDir(path, args);
 } else if (args.increment) {

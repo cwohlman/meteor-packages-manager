@@ -91,7 +91,7 @@ exports.publish = function (pathToPackage, options) {
 	});
 
 	// Publish to meteor package system
-	if (options.publish) promise = promise.then(function () {
+	promise = promise.then(function () {
 		console.log('publishing version: ' + version.format());
 		return shell('meteor publish', {
 			cwd: pathToPackage
@@ -267,5 +267,17 @@ exports.getNameAndVersion = function (pathToPackage, options) {
 			, version: version
 		};
 	});
+	return promise;
+};
+
+exports.publishApp = function (pathToApp, options) {
+	var pathToPackages = path.join(pathToApp, 'packages')
+		, promise = exports.publishDir(pathToPackages, options)
+		;
+
+	promise = promise.then(function () {
+		return exports.updateApp(pathToApp, options);
+	});
+
 	return promise;
 };
