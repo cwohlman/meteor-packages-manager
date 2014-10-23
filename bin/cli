@@ -1,11 +1,86 @@
 #!/usr/bin/env node
 
-var argv = require('optimist').argv
-  , colors = require('colors')
-  , manager = require('..')
-  , _ = require('underscore');
+var manager = require('..')
+	, _ = require('underscore')
+	, packageDescriptor = require('../package.json')
+	, args = require('yargs')
+		.usage('Publish, commit and tag a new version of your meteor package.\n\nUsage: $0 [path] [-p|-d|-a|-l]')
+		
+		// commands
+		.alias('i', 'increment')
+		.boolean('i')
+		.describe('i', 'Increment the version number of a package')
+		.alias('p', 'publish')
+		.boolean('p')
+		.describe('p', 'Publish a package (the default action)')
+		.alias('d', 'dir')
+		.boolean('d')
+		.describe('d', 'Publish all packages in dir')
+		.alias('a', 'app')
+		.boolean('a')
+		.describe('a', 'Publish linked packages and update versions in .meteor/packages')
+		.alias('l', 'link')
+		.boolean('l')
+		.describe('l', 'Link a package into the packages directory.\nNote this command must be run within the app directory')
 
-var command = argv._[0] || 'publish';
-var path = argv._[1] || '.';
+		// options
+		.describe('premajor', 'Increment the premajor version')
+		.boolean('premajor')
+		.describe('preminor', 'Increment the preminor version')
+		.boolean('preminor')
+		.describe('prepatch', 'Increment the prepatch version')
+		.boolean('prepatch')
+		.describe('prerelease', 'Increment the prerelease version')
+		.boolean('prerelease')
+		.describe('major', 'Increment the major version')
+		.boolean('major')
+		.describe('minor', 'Increment the minor version')
+		.boolean('minor')
+		.describe('patch', 'Increment the patch version')
+		.boolean('patch')
+		.describe('pre', 'Increment the pre version')
+		.boolean('pre')
 
-manager[command](path, argv);
+		.describe('commit', 'Commit changes after publishing package')
+		.boolean('commit')
+		.default('commit', true)
+		.describe('tag', 'Tag commit after publishing package')
+		.boolean('tag')
+		.default('tag', true)
+		.describe('push', 'Push changes after publishing package')
+		.boolean('push')
+		.default('push', true)
+		.describe('bump', 'Increment patch version after publishing package' )
+		.alias('bump', 'inc')
+		.boolean('bump')
+		.default('bump', true)
+
+		// final
+		.check(function (args) {
+			console.log(args);
+			if (args.link && typeof args.link != 'string') {
+				throw new Error('Please specify the package path to link to.');
+			}
+			if (_.filter([args.link, args.publish, args.app, args.dir], _.identity).length > 1) {
+				throw new Error('Please specify only one of -l, -a, -p, -d');
+			}
+		})
+		.strict()
+		.help('help')
+		.version(packageDescriptor.version, 'version')
+		.argv
+	;
+
+if (args.link) {
+	throw new Error('Not implemented');
+} else if (args.publish) {
+	manager.publish(args._[0] || '.', args);
+} else if (args.app) {
+	throw new Error('Not implemented');
+} else if (args.dir) {
+	throw new Error('Not implemented');
+} else {
+	throw new Error('Not implemented');
+}
+
+// manager[command](path, argv);

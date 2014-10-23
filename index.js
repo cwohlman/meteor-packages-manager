@@ -9,10 +9,35 @@ var exec = require('child_process').exec
 
 exports.versionRegExp = /version:\s*['"]([0-9._-]*)["']/;
 
-exports.writeVersion = function(pathToDescriptor, version) {
+exports.maybeBumpVersion = function(pathToDescriptor, options) {
+
+	var bumpRelease = _.find([
+			"premajor"
+			, "preminor"
+			, "prepatch"
+			, "prerelease"
+			, "major"
+			, "minor"
+			, "patch"
+			, "pre"], function (release) {
+				return !!options[release];
+			}) || 'patch';
+
 	return readFile(pathToDescriptor, 'utf8').then(function (file) {
-		file = file.replace(/version:\s*['"]([0-9._-]*)["']/, 'version: "' + version.format() + '"');
-		return writeFile(pathToDescriptor, file);
+		version = new semver.SemVer(file.match(exports.versionRegExp)[1]);
+
+		if (options.bump) {
+			version.inc(bumpRelease);
+			file = file.replace(
+				exports.versionRegExp
+				, 'version: "' + version.format() + '"'
+				);
+			return writeFile(pathToDescriptor, file).then(function () {
+				return version;
+			});
+		} else {
+			return version;
+		}
 	});
 };
 
@@ -56,36 +81,11 @@ exports.publish = function (pathToPackage, options) {
 		, file
 		, version
 		;
-	var promise = readFile(pathToDescriptor, 'utf8');
 
-	// Read package.js and extract version
+	var promise = exports.maybeBumpVersion(pathToDescriptor, options);
+
 	promise = promise.then(function (result) {
-		file = result;
-		version = new semver.SemVer(file.match(exports.versionRegExp)[1]);
-
-		
-
-		if (bumpRelease) {
-		}
-		return version;
-	});
-
-	var bumpRelease = _.find([
-			"premajor"
-			, "preminor"
-			, "prepatch"
-			, "prerelease"
-			, "major"
-			, "minor"
-			, "patch"
-			, "pre"], function (release) {
-				return !!options[release];
-			});
-	if (bumpRelease) promise = promise.then(function () {
-		console.log('found version:' + version.format());
-		version.inc(bumpRelease);
-		exports.writeVersion(pathToDescriptor, version);
-		return version;
+		version = result;
 	});
 
 	// Publish to meteor package system
@@ -124,13 +124,25 @@ exports.publish = function (pathToPackage, options) {
 		});
 	}
 
-	if (options.bump) promise = promise.then(function () {
-		console.log('bumping patch version');
-		version.inc('patch');
-		return exports.writeVersion(pathToDescriptor, version);
-	});
-
 	promise.done(function () {
 		console.log('done');
 	});
+};
+
+exports.link = function (pathToPackage) {
+	var shell = function (command) {
+		var deferred = q.defer();
+		exec(command, function (err, stdout, stderr) {
+			console.log(stdout);
+			console.log(stderr);
+			if (err) {
+				deferred.reject(err);
+			} else {
+				deferred.resolve(stdout);
+			}
+		});
+		return deferred.promise;
+	}
+	;
+
 };
