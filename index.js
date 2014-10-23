@@ -3,6 +3,7 @@ var exec = require('child_process').exec
 	, q = require('q')
 	, _ = require('underscore')
 	, semver = require('semver')
+	, existsFile = q.denodeify(fs.exists)
 	, readFile = q.denodeify(fs.readFile)
 	, readDir = q.denodeify(fs.readdir)
 	, writeFile = q.denodeify(fs.writeFile)
@@ -320,4 +321,15 @@ exports.publishApp = function (pathToApp, options) {
 	});
 
 	return promise;
+};
+
+exports.publishAnything = function (pathToDir, options) {
+	var pathToMeteorPackages = path.join(pathToDir, '.meteor/packages')
+		;
+
+	if (fs.existsSync(pathToMeteorPackages)) {
+		return exports.publishApp(pathToDir, options);
+	} else {
+		return exports.publish(pathToDir, options);
+	}
 };

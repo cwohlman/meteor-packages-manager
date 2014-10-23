@@ -92,7 +92,7 @@ if (args.link) {
 	// Note that if this option is specified with the -a option
 	promise = manager.updateApp(path, args);
 } else {
-	throw new Error('Not implemented');
+	promise = manager.publishAnything(path, args);
 }
 
 //throw any errors
