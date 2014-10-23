@@ -9,25 +9,25 @@ var exec = require('child_process').exec
 	, path = require('path');
 
 exports.versionRegExp = /version:\s*['"]([0-9._-]*)["']/;
+exports.nameRegExp = /name:\s*['"](.*)["']/;
 
 exports.maybeBumpVersion = function(pathToDescriptor, options) {
-
-	var bumpRelease = _.find([
-			"premajor"
-			, "preminor"
-			, "prepatch"
-			, "prerelease"
-			, "major"
-			, "minor"
-			, "patch"
-			, "pre"], function (release) {
-				return !!options[release];
-			}) || 'patch';
-
 	return readFile(pathToDescriptor, 'utf8').then(function (file) {
 		version = new semver.SemVer(file.match(exports.versionRegExp)[1]);
 
-		if (options.bump) {
+		if (options && options.bump) {	
+			var bumpRelease = _.find([
+					"premajor"
+					, "preminor"
+					, "prepatch"
+					, "prerelease"
+					, "major"
+					, "minor"
+					, "patch"
+					, "pre"], function (release) {
+						return !!options[release];
+					}) || 'patch';
+
 			version.inc(bumpRelease);
 			file = file.replace(
 				exports.versionRegExp
@@ -126,13 +126,9 @@ exports.publish = function (pathToPackage, options) {
 		});
 	}
 
-	var result = promise;
-
-	promise.done(function () {
+	return promise.then(function () {
 		console.log('published package ' + packageName);
 	});
-
-	return result;
 };
 
 exports.link = function (pathToPackage) {
@@ -165,37 +161,111 @@ exports.link = function (pathToPackage) {
 		return shell(command);
 	});
 
-	var result = promise;
-
-	promise.done(function () {
+	return promise.then(function () {
 		console.log('linked package ' + packageName);
 	});
-
-	return result;
 };
 
 exports.publishDir = function (pathToDir, options) {
 	var promise = readDir(pathToDir);
 
 	promise = promise.then(function(files) {
-		var promise;
-		_.each(files, function (file) {
-					console.log(file);
-					console.log(path.resolve(file));
-			if (promise) {
-				promise.then(function() {
-					return exports.publish(file, options);
-				});
-			} else {
-				promise = exports.publish(file, options);
-			}
-		});
-		return promise;
+		return exports.publishPackages(pathToDir, files, options);
 	});
 
-	var result = promise;
-	promise.done(function () {
+	return promise.then(function () {
 		console.log('published all packages in dir');
 	});
-	return result;
+};
+
+exports.publishPackages = function (pathToDir, files, options) {
+	var promise;
+	_.each(files, function (file) {
+		file = path.join(pathToDir, file);
+		if (promise) {
+			promise.then(function() {
+				return exports.publish(file, options);
+			});
+		} else {
+			promise = exports.publish(file, options);
+		}
+	});
+	return promise;
+};
+
+exports.updateApp = function (pathToApp, options) {
+	var packagesPath = path.join(pathToApp, 'packages')
+		, promise = readDir(packagesPath);
+
+	promise = promise.then(function (files) {
+		return exports.updateVersions(
+			pathToApp
+			, packagesPath
+			, files
+			, options
+		);
+	});
+
+	return promise.then(function () {
+		console.log('updated app package versions.');
+	});
+};
+
+exports.updateVersions = function(pathToApp, packagesPath, files, options) {
+	var promise;
+	_.each(files, function (file) {
+		file = path.join(packagesPath, file);
+		if (promise) {
+			promise.then(function(result) {
+				return exports.getNameAndVersion(file, options).then(function (a) {
+					result[a.name] = a.version;
+					return result;
+				});
+			});
+		} else {
+			promise = exports.getNameAndVersion(file, options).then(function (a) {
+				var result = {};
+				result[a.name] = a.version;
+				return result;
+			});
+		}
+	});
+	promise.then(function (versions) {
+		var pathToMeteorPackages = path.join(pathToApp, '.meteor/packages')
+			, promise = readFile(pathToMeteorPackages, 'utf8')
+			;
+		promise = promise.then(function (file) {
+			_.each(versions, function (version, name) {
+				var i = file.indexOf(name)
+					, lineEnd = file.indexOf('\n', i);
+
+				// replace old version with new version
+				if (i != -1) {
+					file = file.slice(0, i) +
+						name + '@' + version +
+						(lineEnd != -1 ? file.slice(lineEnd) : '');
+				}
+			});
+			return writeFile(pathToMeteorPackages, file);
+		});
+
+		return promise;
+	});
+	return promise;	
+};
+
+exports.getNameAndVersion = function (pathToPackage, options) {
+	var pathToPackageJs = path.join(pathToPackage, 'package.js')
+		, promise = readFile(pathToPackageJs, 'utf8')
+		;
+	promise = promise.then(function (file) {
+		var packageName = file.match(exports.nameRegExp)[1]
+			, version = file.match(exports.versionRegExp)[1]
+			;
+		return {
+			name: packageName
+			, version: version
+		};
+	});
+	return promise;
 };

@@ -22,8 +22,11 @@ var manager = require('..')
 		.alias('l', 'link')
 		.boolean('l')
 		.describe('l', 'Link a package into the packages directory.\nNote this command must be run within the app directory')
+		.alias('u', 'update-app')
+		.boolean('u')
+		.describe('u', 'Update version numbers in app to match versions in /packages dir\nParticularly useful when you\'ve already published each package, but haven\'t updated the app.' )
 
-		// options
+		// semver increment release options
 		.describe('premajor', 'Increment the premajor version')
 		.boolean('premajor')
 		.describe('preminor', 'Increment the preminor version')
@@ -41,6 +44,7 @@ var manager = require('..')
 		.describe('pre', 'Increment the pre version')
 		.boolean('pre')
 
+		// publish options
 		.describe('commit', 'Commit changes after publishing package')
 		.boolean('commit')
 		.default('commit', true)
@@ -50,16 +54,19 @@ var manager = require('..')
 		.describe('push', 'Push changes after publishing package')
 		.boolean('push')
 		.default('push', true)
-		.describe('bump', 'Increment patch version after publishing package' )
-		.alias('bump', 'inc')
+		.describe('bump', 'Increment patch version after publishing package')
 		.boolean('bump')
 		.default('bump', true)
+
+		// app options
+		.describe('cleanup', 'Remove symlinked packages after running --app')
+		.boolean('cleanup')
 
 		// final
 		.check(function (args) {
 			console.log(args);
-			if (_.filter([args.link, args.publish, args.app, args.dir], _.identity).length > 1) {
-				throw new Error('Please specify only one of -l, -a, -p, -d');
+			if (_.filter([args.link, args.publish, args.app, args.dir, args.increment], _.identity).length > 1) {
+				throw new Error('Please specify only one of -l, -a, -p, -d, -i');
 			}
 		})
 		.strict()
@@ -69,16 +76,26 @@ var manager = require('..')
 	, path = args._[0] || '.'
 	;
 
+var promise;
+
 if (args.link) {
-	manager.link(path, args);
+	promise = manager.link(path, args);
 } else if (args.publish) {
-	manager.publish(path, args);
+	promise = manager.publish(path, args);
 } else if (args.app) {
 	throw new Error('Not implemented');
 } else if (args.dir) {
-	manager.publishDir(path, args);
+	promise = manager.publishDir(path, args);
+} else if (args.increment) {
+	throw new Error('Not implemented');
+} else if (args.updateApp) {
+	// Note that if this option is specified with the -a option
+	promise = manager.updateApp(path, args);
 } else {
 	throw new Error('Not implemented');
 }
+
+//throw any errors
+promise.done();
 
 // manager[command](path, argv);
