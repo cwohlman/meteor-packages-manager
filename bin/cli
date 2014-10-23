@@ -87,7 +87,7 @@ if (args.link) {
 } else if (args.dir) {
 	promise = manager.publishDir(path, args);
 } else if (args.increment) {
-	throw new Error('Not implemented');
+	promise = manager.increment(path, args);
 } else if (args.updateApp) {
 	// Note that if this option is specified with the -a option
 	promise = manager.updateApp(path, args);

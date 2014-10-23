@@ -1,6 +1,6 @@
 {
   "name": "meteor-fast-publish",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "CLI Tool for managing meteor packages",
   "main": "index.js",
   "bin": {

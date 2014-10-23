@@ -59,13 +59,6 @@ exports.publish = function (pathToPackage, options) {
 		return deferred.promise;
 	}
 	;
-	options = _.defaults(options || {}, {
-		commit: true
-		, push: true
-		, tag: true
-		, publish: true
-		, bump: true
-	});
 
 	if (options.tag && !options.commit) {
 		console.log('Warning --tag option is a no-op without --commit option');
@@ -98,15 +91,42 @@ exports.publish = function (pathToPackage, options) {
 		});
 	});
 
-	// commit changes
-	if (options.commit) promise = promise.then(function () {
-		// XXX some way to avoid commiting if no changes detected
-		// if we can do that we could allow taging and pushing when no --commit
-		// option is specified (we would warn if there are untracked/changed
-		// files)
-		console.log('commiting published version');
-		return shell('git commit --allow-empty -am "Publish version v' + version.format() + '"');
+	promise = promise.then(function () {
+		return exports.commitAndPublish(pathToPackage, version, options);
 	});
+
+	return promise.then(function () {
+		console.log('published package ' + packageName);
+	});
+};
+
+exports.commitAndPublish = function (pathToPackage, version, options) {
+	var shell = function (command) {
+		var deferred = q.defer();
+		exec(command, {
+			cwd: pathToPackage
+		}, function (err, stdout, stderr) {
+			console.log(stdout);
+			console.log(stderr);
+			if (err) {
+				deferred.reject(err);
+			} else {
+				deferred.resolve(stdout);
+			}
+		});
+		return deferred.promise;
+	}
+	;
+	// commit changes
+	if (!options.commit) return;
+	
+	console.log('commiting published version');
+	
+	var promise = shell(
+		'git commit --allow-empty -am "Publish version v' +
+		version.format() +
+		'"'
+	);
 
 	// tag version
 	if (options.commit && options.tag) promise = promise.then(function () {
@@ -125,9 +145,29 @@ exports.publish = function (pathToPackage, options) {
 			return shell('git push --tags');
 		});
 	}
+	return promise;
+};
+
+exports.increment = function (pathToPackage, options) {
+
+	var pathToDescriptor = path.join(pathToPackage, 'package.js')
+		, packageName = path.basename(path.resolve(pathToPackage))
+		, file
+		, version
+		;
+
+	var promise = exports.maybeBumpVersion(pathToDescriptor, options);
+
+	promise = promise.then(function (result) {
+		version = result;
+	});
+
+	promise = promise.then(function () {
+		return exports.commitAndPublish(pathToPackage, version, options);
+	});
 
 	return promise.then(function () {
-		console.log('published package ' + packageName);
+		console.log('incremented package ' + packageName);
 	});
 };
 
