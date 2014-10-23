@@ -78,6 +78,7 @@ exports.publish = function (pathToPackage, options) {
 	console.log('reading package.js');
 
 	var pathToDescriptor = path.join(pathToPackage, 'package.js')
+		, packageName = path.basename(path.resolve(pathToPackage))
 		, file
 		, version
 		;
@@ -125,7 +126,7 @@ exports.publish = function (pathToPackage, options) {
 	}
 
 	promise.done(function () {
-		console.log('done');
+		console.log('published package ' + packageName);
 	});
 };
 
@@ -145,4 +146,21 @@ exports.link = function (pathToPackage) {
 	}
 	;
 
+	var packageName = path.basename(path.resolve(pathToPackage))
+		, relativePath = path.relative('./packages', pathToPackage)
+		, promise = shell('mkdir -p packages')
+		;
+
+	promise = promise.then(function () {
+		var command = [
+			'ln -sh'
+			, relativePath
+			, path.join('packages', packageName)
+			].join(' ');
+		return shell(command);
+	});
+
+	promise.done(function () {
+		console.log('linked package ' + packageName);
+	});
 };
