@@ -4,6 +4,7 @@ var exec = require('child_process').exec
 	, _ = require('underscore')
 	, semver = require('semver')
 	, readFile = q.denodeify(fs.readFile)
+	, readDir = q.denodeify(fs.readdir)
 	, writeFile = q.denodeify(fs.writeFile)
 	, path = require('path');
 
@@ -125,9 +126,13 @@ exports.publish = function (pathToPackage, options) {
 		});
 	}
 
+	var result = promise;
+
 	promise.done(function () {
 		console.log('published package ' + packageName);
 	});
+
+	return result;
 };
 
 exports.link = function (pathToPackage) {
@@ -160,7 +165,37 @@ exports.link = function (pathToPackage) {
 		return shell(command);
 	});
 
+	var result = promise;
+
 	promise.done(function () {
 		console.log('linked package ' + packageName);
 	});
+
+	return result;
+};
+
+exports.publishDir = function (pathToDir, options) {
+	var promise = readDir(pathToDir);
+
+	promise = promise.then(function(files) {
+		var promise;
+		_.each(files, function (file) {
+					console.log(file);
+					console.log(path.resolve(file));
+			if (promise) {
+				promise.then(function() {
+					return exports.publish(file, options);
+				});
+			} else {
+				promise = exports.publish(file, options);
+			}
+		});
+		return promise;
+	});
+
+	var result = promise;
+	promise.done(function () {
+		console.log('published all packages in dir');
+	});
+	return result;
 };

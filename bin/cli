@@ -76,7 +76,7 @@ if (args.link) {
 } else if (args.app) {
 	throw new Error('Not implemented');
 } else if (args.dir) {
-	throw new Error('Not implemented');
+	manager.publishDir(path, args);
 } else {
 	throw new Error('Not implemented');
 }
