@@ -7,21 +7,21 @@ var manager = require('..')
 		.usage('Publish, commit and tag a new version of your meteor package.\n\nUsage: $0 [path] [-p|-d|-a|-l]')
 		
 		// commands
-		.alias('i', 'increment')
-		.boolean('i')
-		.describe('i', 'Increment the version number of a package')
 		.alias('p', 'publish')
 		.boolean('p')
 		.describe('p', 'Publish a package (the default action)')
-		.alias('d', 'dir')
-		.boolean('d')
-		.describe('d', 'Publish all packages in dir')
-		.alias('a', 'app')
-		.boolean('a')
-		.describe('a', 'Publish linked packages and update versions in .meteor/packages')
 		.alias('l', 'link')
 		.boolean('l')
 		.describe('l', 'Link a package into the packages directory.\nNote this command must be run within the app directory')
+		.alias('a', 'app')
+		.boolean('a')
+		.describe('a', 'Publish linked packages and update versions in .meteor/packages')
+		.alias('d', 'dir')
+		.boolean('d')
+		.describe('d', 'Publish all packages in dir')
+		.alias('i', 'increment')
+		.boolean('i')
+		.describe('i', 'Increment the version number of a package')
 		.alias('u', 'update-app')
 		.boolean('u')
 		.describe('u', 'Update version numbers in app to match versions in /packages dir\nParticularly useful when you\'ve already published each package, but haven\'t updated the app.' )
@@ -64,7 +64,14 @@ var manager = require('..')
 
 		// final
 		.check(function (args) {
-			console.log(args);
+			if (args.tag && !args.commit) {
+				console.log('Warning --tag option is a no-op without --commit option');
+			}
+
+			if (args.push && !args.commit) {
+				console.log('Warning --push option is a no-op without --commit option');
+			}
+
 			if (_.filter([args.link, args.publish, args.app, args.dir, args.increment], _.identity).length > 1) {
 				throw new Error('Please specify only one of -l, -a, -p, -d, -i');
 			}

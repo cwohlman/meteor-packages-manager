@@ -61,14 +61,6 @@ exports.publish = function (pathToPackage, options) {
 	}
 	;
 
-	if (options.tag && !options.commit) {
-		console.log('Warning --tag option is a no-op without --commit option');
-	}
-
-	if (options.push && !options.commit) {
-		console.log('Warning --push option is a no-op without --commit option');
-	}
-
 	console.log('publishing package: ' + pathToPackage);
 	console.log('reading package.js');
 
@@ -172,7 +164,9 @@ exports.increment = function (pathToPackage, options) {
 	});
 };
 
-exports.link = function (pathToPackage) {
+exports.link = function (pathToPackage, options) {
+	// XXX
+	// should accept an array
 	var shell = function (command) {
 		var deferred = q.defer();
 		exec(command, function (err, stdout, stderr) {
@@ -192,6 +186,10 @@ exports.link = function (pathToPackage) {
 		, relativePath = path.relative('./packages', pathToPackage)
 		, promise = shell('mkdir -p packages')
 		;
+
+	// XXX
+	// should update .gitignore
+	// should update .linkedpackages
 
 	promise = promise.then(function () {
 		var command = [
@@ -237,6 +235,8 @@ exports.publishPackages = function (pathToDir, files, options) {
 exports.updateApp = function (pathToApp, options) {
 	var packagesPath = path.join(pathToApp, 'packages')
 		, promise = readDir(packagesPath);
+
+	// XXX should read from .linkedpackages
 
 	promise = promise.then(function (files) {
 		return exports.updateVersions(
@@ -315,6 +315,8 @@ exports.publishApp = function (pathToApp, options) {
 	var pathToPackages = path.join(pathToApp, 'packages')
 		, promise = exports.publishDir(pathToPackages, options)
 		;
+		
+	// XXX should read from .linkedpackages
 
 	promise = promise.then(function () {
 		return exports.updateApp(pathToApp, options);
