@@ -273,15 +273,27 @@ exports.publishPackages = function (pathToDir, files, options) {
 };
 
 exports.updateApp = function (pathToApp, options) {
-	var packagesPath = path.join(pathToApp, 'packages')
-		, promise = readDir(packagesPath);
+	var pathToPackages = path.join(pathToApp, 'packages')
+		, pathToLinkedPackages = path.join(pathToPackages, '.linkedpackages')
+		, promise = readFile(pathToLinkedPackages, 'utf8')
+		;
 
-	// XXX should read from .linkedpackages
+	promise = promise.then(function (data) {
+		var files = _
+			.chain(data.split('\n'))
+			.map(function (a) {
+				return a.trim();
+			})
+			.filter(_.identity)
+			.value()
+			;
+		return files;
+	});
 
 	promise = promise.then(function (files) {
 		return exports.updateVersions(
 			pathToApp
-			, packagesPath
+			, pathToPackages
 			, files
 			, options
 		);
