@@ -304,10 +304,11 @@ exports.updateApp = function (pathToApp, options) {
 	});
 };
 
-exports.updateVersions = function(pathToApp, packagesPath, files, options) {
+exports.updateVersions = function(pathToApp, pathToPackages, files, options) {
+	console.log('updating app versions to match package versions');
 	var promise;
 	_.each(files, function (file) {
-		file = path.join(packagesPath, file);
+		file = path.join(pathToPackages, file);
 		if (promise) {
 			promise = promise.then(function(result) {
 				return exports.getNameAndVersion(file, options).then(function (a) {
@@ -345,6 +346,47 @@ exports.updateVersions = function(pathToApp, packagesPath, files, options) {
 
 		return promise;
 	});
+	if (options.cleanup) {
+		promise = promise.then(function () {
+			console.log('cleaning up development packages');
+		});
+		var pathToGitignore = path.join(pathToPackages, '.gitignore')
+			, shell = function (command) {
+				var deferred = q.defer();
+				exec(command, {
+					cwd: pathToPackages
+				}, function (err, stdout, stderr) {
+					console.log(stdout);
+					console.log(stderr);
+					if (err) {
+						deferred.reject(err);
+					} else {
+						deferred.resolve(stdout);
+					}
+				});
+				return deferred.promise;
+			};
+		promise = promise.then(function () {
+			exports.runSeveral(function (p) {
+				console.log('removing ' + p);
+				shell('rm ' + p);
+			}, files.concat('.linkedpackages'));
+		});
+		promise = promise.then(function () {
+			return readFile(pathToGitignore, 'utf8');
+		});
+		promise = promise.then(function (file) {
+			var re = new RegExp('^\\s*' +
+				// escape any regex chars in string eg .
+				// http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+				file.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&") +
+				"\\s*$");
+			_.each(files, function (a) {
+				file = file.replace(re, '');
+			});
+			return writeFile(pathToGitignore, file);
+		});
+	}
 	return promise;	
 };
 
@@ -405,48 +447,6 @@ exports.publishApp = function (pathToApp, options) {
 			, options
 			);
 	});
-
-	if (options.cleanup) {
-		promise = promise.then(function () {
-			console.log('cleaning up development packages');
-		});
-		var pathToGitignore = path.join(pathToPackages, '.gitignore')
-			, shell = function (command) {
-				var deferred = q.defer();
-				exec(command, {
-					cwd: pathToPackages
-				}, function (err, stdout, stderr) {
-					console.log(stdout);
-					console.log(stderr);
-					if (err) {
-						deferred.reject(err);
-					} else {
-						deferred.resolve(stdout);
-					}
-				});
-				return deferred.promise;
-			};
-		promise = promise.then(function () {
-			exports.runSeveral(function (p) {
-				console.log('removing ' + p);
-				shell('rm ' + p);
-			}, files.concat('.linkedpackages'));
-		});
-		promise = promise.then(function () {
-			return readFile(pathToGitignore, 'utf8');
-		});
-		promise = promise.then(function (file) {
-			var re = new RegExp('^\\s*' +
-				// escape any regex chars in string eg .
-				// http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
-				file.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&") +
-				"\\s*$");
-			_.each(files, function (a) {
-				file = file.replace(re, '');
-			});
-			return writeFile(pathToGitignore, file);
-		});
-	}
 
 	return promise.then(function () {
 		console.log('finished publishing app packages');
