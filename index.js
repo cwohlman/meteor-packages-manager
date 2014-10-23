@@ -16,7 +16,8 @@ exports.maybeBumpVersion = function(pathToDescriptor, options) {
 	return readFile(pathToDescriptor, 'utf8').then(function (file) {
 		version = new semver.SemVer(file.match(exports.versionRegExp)[1]);
 
-		if (options && options.bump) {	
+		if (options && options.bump) {
+			console.log('bumping version');
 			var bumpRelease = _.find([
 					"premajor"
 					, "preminor"
@@ -28,7 +29,6 @@ exports.maybeBumpVersion = function(pathToDescriptor, options) {
 					, "pre"], function (release) {
 						return !!options[release];
 					}) || 'patch';
-
 			version.inc(bumpRelease);
 			file = file.replace(
 				exports.versionRegExp
@@ -353,13 +353,38 @@ exports.getNameAndVersion = function (pathToPackage, options) {
 
 exports.publishApp = function (pathToApp, options) {
 	var pathToPackages = path.join(pathToApp, 'packages')
-		, promise = exports.publishDir(pathToPackages, options)
+		, pathToLinkedPackages = path.join(pathToPackages, '.linkedpackages')
+		, promise = readFile(pathToLinkedPackages, 'utf8')
 		;
 
-	// XXX should read from .linkedpackages
+	promise = promise.then(function (data) {
+		var files = _
+			.chain(data.split('\n'))
+			.map(function (a) {
+				return a.trim();
+			})
+			.filter(_.identity)
+			.value()
+			;
+		var filesWithPaths = _.map(files, function (a) {
+				return path.join(pathToPackages, a);
+			});
+		return exports.runSeveral(
+			exports.publish
+			, filesWithPaths
+			, options
+		).then(function () {
+			return files;
+		});
+	});
 
-	promise = promise.then(function () {
-		return exports.updateApp(pathToApp, options);
+	promise = promise.then(function (files) {
+		return exports.updateVersions(
+			pathToApp
+			, pathToPackages
+			, files
+			, options
+			);
 	});
 
 	// XXX should cleanup if --cleanup
@@ -379,9 +404,9 @@ exports.publishAnything = function (pathToDir, options) {
 };
 
 exports.runSeveral = function (command, paths, options) {
-	var promise;
+	var promise = q();
 	_.each(paths, function (p) {
-		promise = !promise ? command(p, options) : promise.then(function () {
+		promise = promise.then(function () {
 			return command(p, options);
 		});
 	});
