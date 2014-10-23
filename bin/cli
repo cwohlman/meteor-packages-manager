@@ -83,31 +83,30 @@ var manager = require('..')
 		.help('help')
 		.version(packageDescriptor.version, 'version')
 		.argv
-	, path = args._[0] || '.'
+	, paths = args._
 	;
+
+if (!args.link) paths[0] = paths[0] || '.';
 
 var promise;
 
 if (args.link) {
-	promise = manager.linkPackages(args._, args);
+	promise = manager.linkPackages(paths, args);
 } else if (args.publish) {
-	promise = manager.publish(path, args);
+	promise = manager.runSeveral(manager.publish, paths, args);
 } else if (args.app) {
-	promise = manager.publishApp(path, args);
+	promise = manager.runSeveral(manager.publishApp, paths, args);
 } else if (args.dir) {
-	promise = manager.publishDir(path, args);
+	promise = manager.runSeveral(manager.publishDir, paths, args);
 } else if (args.increment) {
-	promise = manager.increment(path, args);
+	promise = manager.runSeveral(manager.increment, paths, args);
 } else if (args.updateApp) {
-	// Note that if this option is specified with the -a option
-	promise = manager.updateApp(path, args);
+	promise = manager.runSeveral(manager.updateApp, paths, args);
 } else {
-	promise = manager.publishAnything(path, args);
+	promise = manager.runSeveral(manager.publishAnything, paths, args);
 }
 
 //throw any errors
 promise.done(function () {
 	console.log('command completed successfully!');
 });
-
-// manager[command](path, argv);
