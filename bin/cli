@@ -86,7 +86,7 @@ var manager = require('..')
 var promise;
 
 if (args.link) {
-	promise = manager.link(path, args);
+	promise = manager.linkPackages(args._, args);
 } else if (args.publish) {
 	promise = manager.publish(path, args);
 } else if (args.app) {

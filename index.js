@@ -164,6 +164,45 @@ exports.increment = function (pathToPackage, options) {
 	});
 };
 
+exports.linkPackages = function (packages, options) {
+	var promise
+		, gitignorePath = './packages/.gitignore'
+		, linkedPackages = './packages/.linkedpackages'
+		;
+	promise = exports.runSeveral(exports.link, packages, options);
+
+	promise = promise.then(function () {
+		if (fs.existsSync(gitignorePath)) return readFile(gitignorePath);
+		else return '';
+	});
+	promise = promise.then(function (file) {
+		_.each(packages.concat(['.linkedpackages']), function (a) {
+			var name = path.basename(path.resolve(a));
+			if (!file.match("^" + name + "$")) {
+				file += "\n" + name;
+			}
+		});
+		return writeFile(gitignorePath, file);
+	});
+	promise = promise.then(function () {
+		if (fs.existsSync(linkedPackages)) return readFile(linkedPackages);
+		else return '';
+	});
+	promise = promise.then(function (file) {
+		_.each(packages, function (a) {
+			var name = path.basename(path.resolve(a));
+			if (!file.match("^" + name + "$")) {
+				file += "\n" + name;
+			}
+		});
+		return writeFile(linkedPackages, file);
+	});
+	if (packages.length > 1) promise.then(function () {
+		console.log('linked ' + packages.length + ' packages');
+	});
+	return promise;
+};
+
 exports.link = function (pathToPackage, options) {
 	// XXX
 	// should accept an array
@@ -202,6 +241,7 @@ exports.link = function (pathToPackage, options) {
 
 	return promise.then(function () {
 		console.log('linked package ' + packageName);
+		return packageName;
 	});
 };
 
@@ -315,12 +355,14 @@ exports.publishApp = function (pathToApp, options) {
 	var pathToPackages = path.join(pathToApp, 'packages')
 		, promise = exports.publishDir(pathToPackages, options)
 		;
-		
+
 	// XXX should read from .linkedpackages
 
 	promise = promise.then(function () {
 		return exports.updateApp(pathToApp, options);
 	});
+
+	// XXX should cleanup if --cleanup
 
 	return promise;
 };
@@ -334,4 +376,14 @@ exports.publishAnything = function (pathToDir, options) {
 	} else {
 		return exports.publish(pathToDir, options);
 	}
+};
+
+exports.runSeveral = function (command, paths, options) {
+	var promise;
+	_.each(paths, function (p) {
+		promise = !promise ? command(p, options) : promise.then(function () {
+			return command(p, options);
+		});
+	});
+	return promise;
 };
