@@ -7,7 +7,8 @@
     "colors": "^1.0.3",
     "optimist": "^0.6.1",
     "q": "^1.0.1",
-    "semver": "^4.1.0"
+    "semver": "^4.1.0",
+    "underscore": "^1.7.0"
   },
   "devDependencies": {},
   "scripts": {
